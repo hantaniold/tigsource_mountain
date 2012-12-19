@@ -6,20 +6,26 @@ package
 	import flash.geom.Point;
 	import org.flixel.FlxG;
 	import org.flixel.FlxGroup;
+	import org.flixel.FlxPoint;
 	import org.flixel.FlxSprite;
 	import org.flixel.FlxState;
+	import org.flixel.FlxText;
 	public class PlayState  extends FlxState
 	{
 		
 		
 		private var mountain:FlxSprite;
 		private var player:FlxSprite;
+		private var npc:FlxSprite;
+		private var zone:FlxSprite;
+		private var dropper:FlxSprite;
 		private var foot_pt:Point = new Point;
 		private var k:K;
 		
 		private var state:int = 0;
 		private const S_INIT:int = 0;
 		private const S_PLAY:int = 1;
+		private const S_END:int = 2;
 		
 		private var s_heights:Array = new Array(FlxG.width);
 		
@@ -40,6 +46,21 @@ package
 			player.makeGraphic(3, 10, 0xffffffff);
 			player.exists = false;
 			add(player);
+			
+			npc = new FlxSprite(FlxG.width - 10, FlxG.height - 12);
+			npc.makeGraphic(3, 10, 0xffffffff);
+			npc.exists = false;
+			add(npc);
+			
+			zone = new FlxSprite;
+			zone.makeGraphic(15, FlxG.height, 0xffffffff);
+			zone.alpha = 0;
+			add(zone);
+			
+			dropper = new FlxSprite;
+			dropper.makeGraphic(1, 60, 0xffff0000);
+			dropper.visible = false;
+			add(dropper);
 			
 			for (var i:int = 0; i < 40; i++) {
 				var star:FlxSprite = new FlxSprite(0, 0);
@@ -92,6 +113,7 @@ package
 		
 		override public function update():void 
 		{
+			// Move the stars, pulsate 'em
 			for each (var star:FlxSprite in stars.members) {
 				if (star.x > FlxG.width) {
 					star.x = 0;
@@ -117,8 +139,11 @@ package
 					state = S_PLAY;
 					player.x = 4;
 					player.y = 20;
+					zone.x = 2;
+					zone.y = 0;
 					player.exists = true;
 					pluses.exists = true;
+					npc.exists = true;
 				}
 				super.update();
 				return;
@@ -126,7 +151,13 @@ package
 				super.update();
 				update_plus();
 				update_player();
+			} else if (state == S_END) {
+				super.update();
+				update_player();
+				update_end();
 			}
+			
+			// Initialize the pluses when drawing finished
 			if (false == done_drawing_init && draw_mountain() == true) {
 				done_drawing_init = true;
 				for (var i:int = 0; i < pluses.maxSize; i++) {
@@ -136,27 +167,178 @@ package
 				}
 			} 
 			
+			// Pulsate the zone where you can drop pluses
+			if (pluses.getFirstAvailable() != null) {
+				if (zone.alive) {
+					zone.alpha += 0.0035;
+					if (zone.alpha > 0.6) {
+						zone.alive = false;
+					}
+				} else {
+					zone.alpha -= 0.0035;
+					if (zone.alpha <= 0.002) {
+						zone.alive = true;
+					}
+				}
+			} else {
+				zone.alpha = 0;
+			}
 			
 			change_bg_color();
 			k.update();
 		}
 		
+		private var end_ctr:int = 0;
+		private var score:Number = 0;
+		private var t_end:Number = 0;
+		private var score_text:FlxText;
+		
+		// Shake and flash and shit
+		private function update_end():void {
+			spd = 0;
+			if (end_ctr == 0) {
+				FlxG.shake(0.03, 2);
+				FlxG.flash(0xaaff2222, 1);
+				for (var i:int = 0; i < FlxG.width; i++) {
+					score += (FlxG.height - s_heights[i]);
+					for (var j:int = s_heights[i]; j < FlxG.height; j++) {
+						mountain.framePixels.setPixel32(i, j, (mountain.framePixels.getPixel32(i, j) | 0x00ff0000) & 0xffff0000);
+					}
+				}
+				speed_up();
+				end_ctr += 1;
+			} else if (end_ctr == 1) {
+				t_end += FlxG.elapsed;
+				if (t_end > 1.5) {
+					t_end = 0;
+					FlxG.shake(0.04, 2);
+					FlxG.flash(0xbbff1111, 1);
+					speed_up();
+					speed_up();
+					end_ctr += 1;
+				}
+			} else if (end_ctr == 2) {
+				t_end += FlxG.elapsed;
+				if (t_end > 2) {
+					FlxG.shake(0.06, 2);
+					FlxG.flash(0xdaff0000, 1); 
+					speed_up();
+					speed_up();
+					speed_up();
+					t_end = 0;
+					end_ctr += 1;
+				}
+			} else if (end_ctr == 3) {
+				t_end += FlxG.elapsed;
+				if (t_end > 2) {
+					FlxG.shake(0.07, 2);
+					FlxG.flash(0xffdd0000, 1);
+					speed_up(); speed_up(); speed_up(); speed_up(); speed_up(); 
+					end_ctr += 1;
+					t_end = 0;
+				}
+			} else if (end_ctr == 4) {
+				t_end += FlxG.elapsed;
+				if (t_end > 1) {
+					FlxG.shake(0.08, 2);
+					FlxG.flash(0xff440000, 1);
+					speed_up(); speed_up();
+					end_ctr += 1;
+					t_end = 0;
+				}
+			} else if (end_ctr == 5) {
+				t_end += FlxG.elapsed;
+				if (t_end > 1) {
+					FlxG.shake(0.08, 2);
+					FlxG.flash(0xff220000, 1);
+					speed_up(); speed_up();
+					end_ctr += 1;
+					t_end = 0;
+				}
+			} else if (end_ctr == 6) {
+				t_end += FlxG.elapsed;
+				if (t_end > 1) {
+					FlxG.shake(0.08, 2);
+					FlxG.flash(0xff110000, 1);
+					speed_up(); speed_up();
+					end_ctr += 1;
+					t_end = 0;
+				}
+			} else if (end_ctr == 7) {
+				t_end += FlxG.elapsed;
+				if (t_end > 1) {
+					pluses.setAll("exists", false);
+					for (var lol:int = 0; lol < stars.maxSize; lol++) {
+						stars.members[lol].acceleration.y = 3 + 5 * Math.random();
+					}
+					FlxG.shake(0.08, 2);
+					FlxG.flash(0xff000000, 4);
+					speed_up(); speed_up();
+					end_ctr += 1;
+					t_end = 0;
+					tm_change_Bg = 50000000;
+					for each (var star:FlxSprite in stars.members) {
+						star.velocity.x = 0;
+					}
+					FlxG.bgColor = 0xff000000;
+					
+					var percent:Number = score / (FlxG.height * FlxG.width);
+					percent *= 100;
+					
+					score_text = new FlxText((FlxG.width / 2) - 80, 15, 500, percent.toFixed(2) + "%\n\nhappy 2012 holidays tigsource\n-sean hogan");
+					score_text.alpha = 0;
+					zone.visible = false;
+					add(score_text);
+				}
+			} else if (end_ctr == 8) {
+				score_text.alpha += 0.002;
+				player.alpha -= 0.002;
+				npc.alpha -= 0.002;
+				mountain.velocity.y = 5;
+			}
+		}
+		
+		// updates pluses and the dropper
 		private function update_plus():void {
-			if (FlxG.keys.justPressed("SPACE")) {
+			// Drop a plus if jump in zone
+			if (player.overlaps(zone) && k.JP_JUMP) {
 				var plus:FlxSprite = pluses.getFirstAvailable() as FlxSprite;
 				if (plus != null) {
 					plus.exists = true;
 					plus.velocity.y = 40;
-					plus.x = (FlxG.width / 2) + 20 * Math.random();
+					plus.x = dropper.x + (dropper.width / 2);
 					plus.y = 0;
+					speed_down();
 				}
 			}
 			
+			// move dropper
+			if (player.overlaps(zone) && zone.alpha > 0) {
+				dropper.visible = true;
+				if (dropper.alive) {
+					dropper.velocity.x = spd;
+					if (dropper.x > FlxG.width - dropper.width) {
+						dropper.velocity.x = -spd;
+						dropper.alive = false;
+					}
+				} else {
+					dropper.velocity.x = -spd;
+					if (dropper.x < 0) {
+						dropper.velocity.x = spd;
+						dropper.alive = true;
+					}
+				}
+			} else {
+				dropper.velocity.x = 0;
+				dropper.visible = false;
+			}
+			
+			// If a plus exists and touches the mountain
+			// then it adds some pixels to the mountain
 			for each (plus in pluses.members) {
 				if (plus.velocity.y > 0) {
 					if (plus.y > s_heights[int(plus.x)]) {
 						plus.velocity.y = 0;
-						speed_down();
 						var r:uint = 40 + 40 * Math.random();
 						FlxG.flash(0xffff0000 | (r << 8) | (r), 0.3);
 						
@@ -186,7 +368,15 @@ package
 							s_heights[x] -= 5;
 							s_heights[x+1] -= 3;
 							s_heights[x + 2] -= 1;
+							
+							for (var j:int = 0; j < 5; j++) {
+								if (s_heights[x - 2 + j] <= 0) {
+									state = S_END;
+								}
+							}
 							x += 5;
+							
+							
 						}
 						
 						plus.x = FlxG.width - 25 * Math.random();
@@ -200,6 +390,9 @@ package
 		private var pluses_held:int = 0;
 		private function update_player():void {
 			
+			// Player's foot point used to detect collision
+			// with the "top" of each part of the mountain
+		
 			foot_pt.x = int(player.x + 1);
 			foot_pt.y = int(player.y + player.height);
 			
@@ -219,16 +412,23 @@ package
 				player.x = FlxG.width - player.width;
 			}
 			
+			if (player.y < -player.height) {
+				player.velocity.y = 30;
+				player.y = -player.height;
+			}
+			
+			// Infinite jumping, I don't give a shit
 			if (k.JP_JUMP) {
 				player.velocity.y = -spd;
 			}
 			
+			// "Collision detection"
 			if (int(foot_pt.y) > s_heights[int(foot_pt.x)]) {
 				foot_pt.y = s_heights[int(foot_pt.x)];
 				player.y = foot_pt.y - player.height;
 			}
 			
-			
+			// Change state if you touch a plus
 			for each (var plus:FlxSprite in pluses.members) {
 				if (plus.exists && player.overlaps(plus)) {
 					plus.exists = false;
@@ -240,6 +440,7 @@ package
 			
 		}
 		
+		// Move stars faster, move player faster, oscillate bg faster
 		private function speed_up():void {
 			tm_change_Bg -= 0.007;
 			spd += 8;
@@ -260,6 +461,8 @@ package
 		private var mountain_len:int = 0;
 		private var mountain_last_y:int = 0;
 		private var mountain_color:uint = 0xFFaaaaaa;
+		// Based on what vertical slice we're drawing,
+		// make a flat, upward or downward slope of pixels
 		private function draw_mountain():Boolean {
 			if (mountain_len >= FlxG.width) {
 				return true;
@@ -290,6 +493,7 @@ package
 			
 			mountain.framePixels.setPixel32(mountain_len, y, mountain_color)
 			s_heights[mountain_len] = y;
+			// Fill in below the top of the mountain for a nice flaky effect
 			var rest:int = y + 1;
 			var alpha:uint = 255;
 			while (rest < FlxG.height) {
@@ -313,6 +517,9 @@ package
 		private var blue_rate:int = 1;
 		private var t_change_bg:Number = 0;
 		private var tm_change_Bg:Number = 0.07;
+		
+		// nothing to see here, just oscillate the red and blue
+		// channels of the bg at different rates
 		private function change_bg_color():void 
 		{
 			t_change_bg += FlxG.elapsed;
