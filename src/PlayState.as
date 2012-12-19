@@ -7,6 +7,7 @@ package
 	import org.flixel.FlxG;
 	import org.flixel.FlxGroup;
 	import org.flixel.FlxPoint;
+	import org.flixel.FlxSound;
 	import org.flixel.FlxSprite;
 	import org.flixel.FlxState;
 	import org.flixel.FlxText;
@@ -31,6 +32,8 @@ package
 		
 		private var stars:FlxGroup = new FlxGroup(40);
 		private var pluses:FlxGroup = new FlxGroup(8);
+		
+		private var instructions:FlxText;
 		
 		override public function create():void 
 		{
@@ -98,10 +101,12 @@ package
 			pluses.exists = false;
 			add(pluses);
 			
-			
 			k = new K;
-			
+			S.init();
 			state = S_INIT;
+			
+			instructions = new FlxText(100, 50, 200, "CONTROLS\n<-  X  ->");
+			add(instructions);
 		}
 		
 		override public function destroy():void 
@@ -118,6 +123,7 @@ package
 				if (star.x > FlxG.width) {
 					star.x = 0;
 					star.y = 50 * Math.random();
+					S.play_cross(star.y);
 				}
 				
 				if (star.alive) {
@@ -135,7 +141,7 @@ package
 				}
 			}
 			if (state == S_INIT) {
-				if (FlxG.keys.justPressed("SPACE")) {
+				if (FlxG.keys.justPressed("X")) {
 					state = S_PLAY;
 					player.x = 4;
 					player.y = 20;
@@ -144,10 +150,12 @@ package
 					player.exists = true;
 					pluses.exists = true;
 					npc.exists = true;
+					S.song.play();
 				}
 				super.update();
 				return;
 			} else if (state == S_PLAY) {
+				instructions.alpha -= 0.01;
 				super.update();
 				update_plus();
 				update_player();
@@ -196,8 +204,13 @@ package
 		// Shake and flash and shit
 		private function update_end():void {
 			spd = 0;
+			S.song.volume -= 0.001;
+			S.end.volume += 0.001;
 			if (end_ctr == 0) {
+				S.end.volume = 0;
 				FlxG.shake(0.03, 2);
+				S.play_hit();
+				S.end.play();
 				FlxG.flash(0xaaff2222, 1);
 				for (var i:int = 0; i < FlxG.width; i++) {
 					score += (FlxG.height - s_heights[i]);
@@ -213,6 +226,7 @@ package
 					t_end = 0;
 					FlxG.shake(0.04, 2);
 					FlxG.flash(0xbbff1111, 1);
+				S.play_hit();
 					speed_up();
 					speed_up();
 					end_ctr += 1;
@@ -221,7 +235,8 @@ package
 				t_end += FlxG.elapsed;
 				if (t_end > 2) {
 					FlxG.shake(0.06, 2);
-					FlxG.flash(0xdaff0000, 1); 
+					FlxG.flash(0xdaff0000, 1);
+				S.play_hit(); 
 					speed_up();
 					speed_up();
 					speed_up();
@@ -285,7 +300,7 @@ package
 					var percent:Number = score / (FlxG.height * FlxG.width);
 					percent *= 100;
 					
-					score_text = new FlxText((FlxG.width / 2) - 80, 15, 500, percent.toFixed(2) + "%\n\nhappy 2012 holidays tigsource\n-sean hogan");
+					score_text = new FlxText((FlxG.width / 2) - 80, 15, 500, percent.toFixed(2) + "%\nMountain,\na game by\nSean Hogan,\nfor the TIGSource 2012\nAdvent Calendar ");
 					score_text.alpha = 0;
 					zone.visible = false;
 					add(score_text);
@@ -302,6 +317,7 @@ package
 		private function update_plus():void {
 			// Drop a plus if jump in zone
 			if (player.overlaps(zone) && k.JP_JUMP) {
+				S.fall.play();
 				var plus:FlxSprite = pluses.getFirstAvailable() as FlxSprite;
 				if (plus != null) {
 					plus.exists = true;
@@ -340,6 +356,7 @@ package
 					if (plus.y > s_heights[int(plus.x)]) {
 						plus.velocity.y = 0;
 						var r:uint = 40 + 40 * Math.random();
+						S.play_hit();
 						FlxG.flash(0xffff0000 | (r << 8) | (r), 0.3);
 						
 						var x:int = int(plus.x) - 10;
@@ -444,6 +461,7 @@ package
 		private function speed_up():void {
 			tm_change_Bg -= 0.007;
 			spd += 8;
+			S.change_cross_volume(0.05);
 			max_red = Math.min(max_red + 15, 255);
 			for each (var star:FlxSprite in stars.members) {
 				star.velocity.x *= 1.18;
@@ -452,6 +470,7 @@ package
 		
 		private function speed_down():void {
 			tm_change_Bg += 0.007;
+			S.change_cross_volume(-0.05);
 			spd -= 8;
 			max_red -= 15;
 			for each (var star:FlxSprite in stars.members) {
